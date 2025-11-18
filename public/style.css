@@ -1,5 +1,5 @@
 :root {
-    --excel-green: #217346; /* Excelのブランドカラー */
+    --excel-green: #217346;
     --excel-light: #E6F2EA;
     --text-dark: #333;
     --bg-gray: #f5f7fa;
@@ -14,25 +14,13 @@ body {
     padding: 40px 20px;
 }
 
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-}
+.container { max-width: 800px; margin: 0 auto; }
 
-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-h1 {
-    color: var(--excel-green);
-    margin: 0;
-    font-size: 24px;
-}
-
+header { text-align: center; margin-bottom: 40px; }
+h1 { color: var(--excel-green); margin: 0; font-size: 24px; }
 p { color: #666; margin-top: 5px; }
 
-/* カードデザイン */
+/* カード */
 .card {
     background: white;
     border-radius: 12px;
@@ -40,142 +28,57 @@ p { color: #666; margin-top: 5px; }
     padding: 25px;
     margin-bottom: 25px;
 }
-
 .card-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
+    display: flex; align-items: center; margin-bottom: 20px;
+    border-bottom: 1px solid #eee; padding-bottom: 15px;
 }
-
 .step-badge {
-    background-color: var(--excel-green);
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin-right: 10px;
+    background-color: var(--excel-green); color: white;
+    font-size: 12px; font-weight: bold; padding: 4px 8px;
+    border-radius: 4px; margin-right: 10px;
 }
+h2 { font-size: 18px; margin: 0; color: var(--text-dark); }
 
-h2 {
-    font-size: 18px;
-    margin: 0;
-    color: var(--text-dark);
-}
-
-/* アップロードエリア（Excel風） */
+/* アップロードエリア */
 .upload-area {
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    background-color: #fafafa;
-    text-align: center;
-    position: relative;
-    transition: all 0.3s;
-    cursor: pointer;
-    height: 180px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border: 2px dashed #ccc; border-radius: 8px;
+    background-color: #fafafa; text-align: center; position: relative;
+    transition: all 0.3s; cursor: pointer; height: 180px;
+    display: flex; align-items: center; justify-content: center;
 }
-
-.upload-area:hover {
-    background-color: var(--excel-light);
-    border-color: var(--excel-green);
-}
-
-.upload-area.has-file {
-    background-color: var(--excel-light);
+.upload-area:hover, .upload-area.has-file {
+    background-color: var(--excel-light); border-color: var(--excel-green);
     border-style: solid;
-    border-color: var(--excel-green);
 }
-
-/* inputは見えなくして全体をクリック可能にする */
 .upload-area input[type="file"] {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    opacity: 0;
-    cursor: pointer;
+    position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer;
 }
+.excel-icon { width: 48px; height: 48px; margin: 0 auto 15px; display: block; }
+.upload-text { font-weight: bold; color: #777; }
+.upload-text span { color: var(--excel-green); text-decoration: underline; }
+.file-name { margin-top: 10px; font-weight: bold; color: var(--excel-green); font-size: 16px; }
 
-.excel-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 10px;
-    display: block;
-    margin: 0 auto 15px;
-}
-
-.upload-text {
-    font-weight: bold;
-    color: #777;
-}
-
-.upload-text span {
-    color: var(--excel-green);
-    text-decoration: underline;
-}
-
-.file-name {
-    margin-top: 10px;
-    font-weight: bold;
-    color: var(--excel-green);
-    font-size: 16px;
-}
-
-/* テーブル周り */
+/* テーブル */
 .instruction { font-size: 14px; color: #888; margin-bottom: 10px; }
-
-.table-container {
-    overflow-x: auto;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    max-height: 400px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px;
-}
-
+.table-container { overflow-x: auto; border: 1px solid #eee; border-radius: 6px; max-height: 400px; }
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th {
-    background-color: var(--bg-gray);
-    color: #555;
-    font-size: 13px;
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    background-color: var(--bg-gray); color: #555; font-size: 13px;
+    padding: 10px; border-bottom: 1px solid var(--border-color);
+    position: sticky; top: 0; z-index: 10;
 }
-
 td input {
-    width: 100%;
-    border: none;
-    border-bottom: 1px solid #eee;
-    padding: 8px;
-    font-size: 14px;
-    box-sizing: border-box;
+    width: 100%; border: none; border-bottom: 1px solid #eee;
+    padding: 8px; font-size: 14px; box-sizing: border-box;
 }
+td input:focus { outline: none; background-color: #e8f0fe; border-bottom: 1px solid #4285f4; }
 
-td input:focus {
-    outline: none;
-    background-color: #e8f0fe;
-    border-bottom: 1px solid #4285f4;
-}
+/* アクションエリア & ボタン共通スタイル */
+.action-area { text-align: center; margin-top: 30px; height: 60px; }
 
-/* ボタン */
-.action-area {
-    text-align: center;
-    margin-top: 30px;
-}
-
-button {
+/* ★これが新しい共通ボタンスタイルです★ */
+.btn-style {
+    display: inline-block;
     background-color: var(--excel-green);
     color: white;
     border: none;
@@ -186,34 +89,14 @@ button {
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(33, 115, 70, 0.3);
     transition: transform 0.1s, box-shadow 0.2s;
+    min-width: 250px;
 }
-
-button:hover {
+.btn-style:hover {
     background-color: #1a5c38;
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(33, 115, 70, 0.4);
 }
+.btn-style:active { transform: translateY(0); }
+.btn-style:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
-button:active {
-    transform: translateY(0);
-}
-
-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
-#statusMessage {
-    margin-top: 15px;
-    font-weight: bold;
-}
-
-#downloadLink {
-    display: inline-block;
-    margin-top: 15px;
-    color: var(--excel-green);
-    text-decoration: none;
-    font-weight: bold;
-    border-bottom: 1px solid;
-}
+#statusMessage { margin-top: 15px; font-weight: bold; }
