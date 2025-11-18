@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel・CSV変換ツール</title>
+    <title>データ統合ツール</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>データ変換システム</h1>
-            <p>Excelを取り込み、データを統合してCSVを出力します</p>
+            <p>Excelを取り込み、データを統合して新しいExcelを作成します</p>
         </header>
 
         <div class="card">
@@ -57,17 +57,19 @@
         </div>
 
         <div class="action-area">
-            <button id="convertBtn" onclick="processData()">
-                CSVに変換してダウンロード
+            <button id="convertBtn" class="btn-style" onclick="processData()">
+                Excelを作成する
             </button>
+            
             <div id="statusMessage"></div>
-            <a id="downloadLink" style="display:none;"></a>
+            
+            <a id="downloadLink" class="btn-style" style="display:none; text-decoration:none;"></a>
         </div>
     </div>
 
     <script src="script.js"></script>
     <script>
-        // ファイル選択時の名前表示ロジック
+        // ファイル名表示
         document.getElementById('uploadFile').addEventListener('change', function(e) {
             const fileName = e.target.files[0] ? e.target.files[0].name : "";
             document.getElementById('fileNameDisplay').textContent = fileName;
@@ -76,46 +78,40 @@
             }
         });
 
-        // 変換＆ダウンロード処理（修正版）
+        // 処理実行
         async function processData() {
             const fileInput = document.getElementById('uploadFile');
             const convertBtn = document.getElementById('convertBtn');
             const statusMsg = document.getElementById('statusMessage');
             const downloadLink = document.getElementById('downloadLink');
 
-            // 1. ファイルチェック
             if (!fileInput.files[0]) {
                 alert('Excelファイルを選択してください。');
                 return;
             }
 
-            // 2. 表データの取得
+            // データの取得
             const tableData = [];
             const rows = document.querySelectorAll('#inputTable tbody tr');
             rows.forEach(tr => {
                 const rowValues = [];
-                let hasData = false;
                 tr.querySelectorAll('input').forEach(input => {
                     rowValues.push(input.value);
-                    if(input.value.trim() !== "") hasData = true;
                 });
-                // 空行はスキップする場合はここを有効化
-                // if (hasData) tableData.push(rowValues);
                 tableData.push(rowValues);
             });
 
-            // 3. 送信データの作成
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('tableData', JSON.stringify(tableData));
 
-            // UI更新
+            // UI更新（ボタン無効化）
             convertBtn.disabled = true;
-            statusMsg.textContent = "CSVを作成中...";
+            convertBtn.textContent = "作成中...";
+            statusMsg.textContent = "";
             downloadLink.style.display = 'none';
 
             try {
-                // 4. APIへ送信
                 const response = await fetch('/api/process', {
                     method: 'POST',
                     body: formData
@@ -126,33 +122,32 @@
                     throw new Error('サーバーエラー: ' + errText);
                 }
 
-                // 5. ファイルダウンロード処理
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 
-                // ★ここが重要：今日の日付で .csv ファイル名を作る
+                // ファイル名作成: complete_20251119.xlsx
                 const date = new Date();
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
-                const filename = `complete_${year}${month}${day}.csv`;
+                const filename = `complete_${year}${month}${day}.xlsx`;
+                
+                // 変換ボタンを隠して、ダウンロードボタンを表示する
+                convertBtn.style.display = 'none'; // 変換ボタンを隠す
                 
                 downloadLink.href = url;
-                downloadLink.download = filename; // 拡張子を .csv に強制
-                downloadLink.textContent = `ダウンロード (${filename})`;
-                downloadLink.style.display = 'inline-block';
+                downloadLink.download = filename;
+                downloadLink.textContent = "ダウンロードする";
+                downloadLink.style.display = 'inline-block'; // ダウンロードボタンを表示
                 
-                // ダウンロードボタンの見た目をリセット
-                downloadLink.style.backgroundColor = '#217346'; 
-                downloadLink.style.color = '#fff';
-                
-                statusMsg.textContent = "作成完了！下のボタンを押して保存してください。";
+                statusMsg.textContent = "完了しました！";
+                statusMsg.style.color = "#217346";
 
             } catch (error) {
                 console.error(error);
-                statusMsg.textContent = "エラーが発生しました: " + error.message;
+                statusMsg.textContent = "エラー: " + error.message;
                 statusMsg.style.color = "red";
-            } finally {
+                convertBtn.textContent = "Excelを作成する"; // 文言戻す
                 convertBtn.disabled = false;
             }
         }
