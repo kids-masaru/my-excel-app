@@ -3,22 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel結合＆データ変換ツール</title>
+    <title>Excel・CSV変換ツール</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>データ変換ツール</h1>
+        <header>
+            <h1>データ変換システム</h1>
+            <p>Excelを取り込み、貼り付けデータと統合してCSVを出力します</p>
+        </header>
 
-        <div class="section">
-            <h2>1. Excelファイルをアップロード</h2>
-            <p>貼り付け用データが入ったExcelを選択してください。</p>
-            <input type="file" id="uploadFile" accept=".xlsx">
+        <div class="card">
+            <div class="card-header">
+                <span class="step-badge">STEP 1</span>
+                <h2>Excelファイルを選択</h2>
+            </div>
+            
+            <div class="upload-area" id="dropZone">
+                <input type="file" id="uploadFile" accept=".xlsx">
+                <div class="upload-content">
+                    <svg class="excel-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="#217346" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    <p class="upload-text">ここにExcelファイルをドロップ<br>または <span>クリックして選択</span></p>
+                    <p id="fileNameDisplay" class="file-name"></p>
+                </div>
+            </div>
         </div>
 
-        <div class="section">
-            <h2>2. 子どもマスタデータの貼り付け</h2>
-            <p>Excelからコピーして、ここの左上(A列)をクリックし貼り付けてください。</p>
+        <div class="card">
+            <div class="card-header">
+                <span class="step-badge">STEP 2</span>
+                <h2>データの貼り付け</h2>
+            </div>
+            <p class="instruction">枠内の左上をクリックし、データを貼り付けてください (Ctrl+V)</p>
+            
             <div class="table-container">
                 <table id="inputTable">
                     <thead>
@@ -37,13 +56,25 @@
             </div>
         </div>
 
-        <div class="section action-area">
-            <button id="convertBtn" onclick="processData()">変換を実行する</button>
+        <div class="action-area">
+            <button id="convertBtn" onclick="processData()">
+                CSVに変換してダウンロード
+            </button>
             <div id="statusMessage"></div>
-            <a id="downloadLink" style="display:none;">ダウンロード</a>
+            <a id="downloadLink" style="display:none;"></a>
         </div>
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // ファイル選択時の名前表示ロジックを追加
+        document.getElementById('uploadFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : "";
+            document.getElementById('fileNameDisplay').textContent = fileName;
+            if(fileName) {
+                document.querySelector('.upload-area').classList.add('has-file');
+            }
+        });
+    </script>
 </body>
 </html>
