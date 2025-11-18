@@ -3,77 +3,78 @@ import openpyxl
 import io
 import os
 import json
+import csv
+import datetime
 
 app = Flask(__name__)
 
-# テンプレートファイルのパス
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template.xlsx')
 
 @app.route('/api/process', methods=['POST'])
 def process_excel():
     try:
-        # 1. アップロードされたファイルを取得
         if 'file' not in request.files:
             return {"error": "No file uploaded"}, 400
         
         uploaded_file = request.files['file']
-        original_filename = uploaded_file.filename
-        
-        # 2. 手入力された表データを取得 (JSON文字列として送られてくる)
-        table_data_json = request.form.get('tableData')
-        if not table_data_json:
-            return {"error": "No table data"}, 400
-        
-        table_data = json.loads(table_data_json) # リストのリストに変換
+        table_data = json.loads(request.form.get('tableData'))
 
-        # 3. テンプレートを読み込む
-        # Vercel等の環境ではバイナリモードで開くのが安全
+        # テンプレート読み込み
         with open(TEMPLATE_PATH, 'rb') as f:
             template_buffer = io.BytesIO(f.read())
-        
         wb_template = openpyxl.load_workbook(template_buffer)
 
-        # --- 処理A: アップロードされたExcelを「貼り付け用」シート(Sheet1)へ ---
-        # アップロードされたファイルをメモリ上で開く
+        # 1. アップロードExcelを「貼り付け用」へ転記
         wb_uploaded = openpyxl.load_workbook(uploaded_file)
-        ws_uploaded = wb_uploaded.worksheets[0] # 1枚目のシート
-        
-        # テンプレートの「貼り付け用」シート（1枚目と仮定、名前指定も可）
-        # 名前で指定する場合: ws_paste = wb_template['貼り付け用']
-        ws_paste = wb_template.worksheets[0] 
+        ws_uploaded = wb_uploaded.worksheets[0]
+        ws_paste = wb_template['貼り付け用'] # シート名指定に変更
 
-        # アップロードされたデータの値をそのまま転記 (A1から)
-        # iter_rowsを使って値をコピー
         for i, row in enumerate(ws_uploaded.iter_rows(values_only=True), start=1):
             for j, value in enumerate(row, start=1):
                 ws_paste.cell(row=i, column=j, value=value)
 
-        # --- 処理B: 手入力データを「子どもマスタ」シート(Sheet2)へ ---
-        # テンプレートの「子どもマスタ」シート（2枚目と仮定）
-        # 名前で指定する場合: ws_master = wb_template['子どもマスタ']
-        ws_master = wb_template.worksheets[1]
-
-        # A2から貼り付け (行: data_row_index + 2, 列: col_index + 1)
-        # table_data は [ ["名前", "カナ", ...], ["名前", ...], ... ] の形式
+        # 2. Web上の表データを「子どもマスタ」へ転記
+        ws_master = wb_template['子どもマスタ'] # シート名指定に変更
         for row_idx, row_data in enumerate(table_data):
             for col_idx, value in enumerate(row_data):
-                # 空白処理などがもし必要ならここで
                 ws_master.cell(row=row_idx + 2, column=col_idx + 1, value=value)
 
-        # 4. 編集したファイルをメモリに保存して返却
-        output_stream = io.BytesIO()
-        wb_template.save(output_stream)
-        output_stream.seek(0)
+        # -------------------------------------------------------
+        # 3. ここが変わりました: 「CSVフォーム」シートをCSVとして出力
+        # -------------------------------------------------------
         
-        # ファイル名を生成
-        base_name = os.path.splitext(original_filename)[0]
-        download_name = f"{base_name}_complete.xlsx"
+        # 「CSVフォーム」シートを取得 (名前はExcelと完全に一致させてください)
+        if 'CSVフォーム' not in wb_template.sheetnames:
+             return {"error": "template.xlsxに「CSVフォーム」シートが見つかりません"}, 500
+             
+        ws_csv_source = wb_template['CSVフォーム']
+
+        # メモリ上でCSV書き込み
+        csv_output = io.StringIO()
+        writer = csv.writer(csv_output)
+
+        # データがある範囲だけ書き出す
+        for row in ws_csv_source.iter_rows(values_only=True):
+            # 行の中身が全部Noneならスキップする処理を入れるとより丁寧ですが、
+            # Excelの数式が入っている場合はそのまま書き出します
+            writer.writerow(row)
+        
+        # 文字列ポインタを先頭に戻す
+        csv_output.seek(0)
+
+        # UTF-8 (BOM付き) のバイナリに変換
+        # ※これがないとExcelで開いたとき日本語が文字化けします
+        byte_output = io.BytesIO(csv_output.getvalue().encode('utf-8-sig'))
+
+        # 今日の日付を取得 (例: 20251119)
+        today_str = datetime.datetime.now().strftime('%Y%m%d')
+        download_name = f"complete_{today_str}.csv"
 
         return send_file(
-            output_stream,
+            byte_output,
             as_attachment=True,
             download_name=download_name,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            mimetype='text/csv'
         )
 
     except Exception as e:
