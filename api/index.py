@@ -16,94 +16,131 @@ def process_excel():
             return {"error": "No file uploaded"}, 400
         
         uploaded_file = request.files['file']
-        # Web画面からの入力データ（A列～F列用）
+        # Web画面からの入力データ
         table_data = json.loads(request.form.get('tableData'))
 
-        # 1. テンプレートを読み込む
+        # テンプレート読み込み
         with open(TEMPLATE_PATH, 'rb') as f:
             template_buffer = io.BytesIO(f.read())
         wb_template = openpyxl.load_workbook(template_buffer)
         
-        # ---------------------------------------------------------
-        # 処理A: アップロードExcelを解析してデータを集計する (Pythonで計算)
-        # ---------------------------------------------------------
+        # =========================================================
+        # 処理A: データ解析フェーズ (Pythonで値を全部計算してしまう)
+        # =========================================================
         wb_uploaded = openpyxl.load_workbook(uploaded_file, data_only=True)
         ws_src = wb_uploaded.worksheets[0] # 1枚目のシート
-
-        # 名前ごとのデータを格納する辞書
-        # content = { "名前": { 1: "08:00", 2: "08:30"... } }
-        attendance_data = {}
         
-        # 名前が登場した順序を保持するリスト
-        unique_names = []
+        # 全行をリストとして取得（行番号でアクセスするため）
+        # min_row=1 から最後まで取得
+        all_rows = list(ws_src.iter_rows(values_only=True))
 
-        # アップロードされたExcelの58行目(仮)から読み込み開始
-        # ※もし開始行が違うなら min_row=58 を調整してください
-        # F列(6列目)からが時間データと仮定
-        for row in ws_src.iter_rows(min_row=58, values_only=True):
-            name = row[0] # A列 (名前)
+        unique_names = []
+        arrival_data = {}   # 登園（上の段）
+        departure_data = {} # 降園（下の段）
+
+        # データ開始行（以前の画像から58行目付近と推測されますが、安全のため全体走査または固定）
+        # ここではループで見つけます
+        START_ROW_INDEX = 57 # 58行目 = index 57
+
+        for i, row in enumerate(all_rows):
+            # 開始行より前はスキップ
+            if i < START_ROW_INDEX:
+                continue
+            
+            # A列(index 0)が名前
+            name = row[0]
             
             # 名前が無効ならスキップ
             if not name or name == "お子さま名" or str(name) == "0":
                 continue
-                
-            if name not in attendance_data:
-                attendance_data[name] = {}
-                unique_names.append(name)
-            
-            # 時間データの処理 (F列=index 5 が1日, G列=index 6 が2日...)
-            # 1日から31日分(最大)ループ
-            for day_idx in range(31):
-                col_idx = 5 + day_idx # F列はindex 5
-                if col_idx < len(row):
-                    time_val = row[col_idx]
-                    
-                    # 時間が入っている場合のみ更新（MAXIFSのロジック）
-                    if time_val and time_val != 0:
-                        # すでに時間が入っていれば、大きい方を採用（帰りの時間を取るため）
-                        current_val = attendance_data[name].get(day_idx + 1)
-                        
-                        # 新しい値が有効なら上書き（比較ロジックは簡易的に）
-                        # 厳密な時間比較が必要ならdatetime変換しますが、
-                        # 今回は「0や空以外が入ればOK」として上書きします
-                        attendance_data[name][day_idx + 1] = time_val
 
-        # ---------------------------------------------------------
-        # 処理B: テンプレートに書き込む
-        # ---------------------------------------------------------
-        
-        # 1. 「貼り付け用」シートへアップロードデータをそのままコピー（一応残す）
+            # 名前リスト作成
+            if name not in unique_names:
+                unique_names.append(name)
+                arrival_data[name] = {}
+                departure_data[name] = {}
+
+            # -----------------------------------------------------
+            # 登園時間の取得（名前と同じ行：F列～）
+            # -----------------------------------------------------
+            # F列は index 5。ここから31日分(index 35まで)を見る
+            for day in range(31):
+                col_idx = 5 + day
+                if col_idx < len(row):
+                    val = row[col_idx]
+                    # 0や空でなければ採用
+                    if val and val != 0:
+                        arrival_data[name][day + 1] = val
+
+            # -----------------------------------------------------
+            # 降園時間の取得（名前の【1つ下の行】：F列～）
+            # -----------------------------------------------------
+            # 次の行が存在するか確認
+            if i + 1 < len(all_rows):
+                next_row = all_rows[i + 1]
+                for day in range(31):
+                    col_idx = 5 + day
+                    if col_idx < len(next_row):
+                        val = next_row[col_idx]
+                        # 0や空でなければ採用
+                        if val and val != 0:
+                            departure_data[name][day + 1] = val
+
+        # =========================================================
+        # 処理B: 書き込みフェーズ
+        # =========================================================
+
+        # 1. 「貼り付け用」シート（1枚目）へ、アップロードデータをそのままコピー
         ws_paste = wb_template['貼り付け用']
-        for i, row in enumerate(ws_src.iter_rows(values_only=True), start=1):
+        for i, row in enumerate(all_rows, start=1):
             for j, value in enumerate(row, start=1):
                 ws_paste.cell(row=i, column=j, value=value)
 
-        # 2. 「子どもマスタ」シートへ書き込み
-        # Web入力データは A列～F列 に書く
-        ws_master = wb_template['子どもマスタ']
-        
-        # ヘッダー行数（データ開始行の1つ上）
-        start_row = 3 # B3からデータ開始と仮定（画像に合わせて調整してください）
+        # 2. 「子どもマスタ」シート（2枚目）へ、★Web入力データ★ を貼る
+        # （ここを元に戻しました）
+        if '子どもマスタ' in wb_template.sheetnames:
+            ws_child = wb_template['子どもマスタ']
+            for row_idx, row_data in enumerate(table_data):
+                for col_idx, value in enumerate(row_data):
+                    # A2から貼り付け
+                    ws_child.cell(row=row_idx + 2, column=col_idx + 1, value=value)
 
-        # 今回は「アップロードされたExcelの名前リスト」を正としてB列に書く？
-        # それとも「Web入力」を正とする？
-        # 画像の関数を見ると「アップロードExcelから名前を抽出」したがっていたので、
-        # ここでは「集計した unique_names」を使って行を作ります。
-        
-        for i, name in enumerate(unique_names):
-            current_row = start_row + i
+        # 3. 「まとめ（登園）」シート（3枚目）へ、★Python計算値(登園)★ を貼る
+        if 'まとめ（登園）' in wb_template.sheetnames:
+            ws_arrival = wb_template['まとめ（登園）']
+            # B3からスタート
+            BASE_ROW = 3
             
-            # B列: 名前
-            ws_master.cell(row=current_row, column=2, value=name)
-            
-            # E列(5列目)～: 時間データ (1日～31日)
-            days = attendance_data[name]
-            for day in range(1, 32):
-                if day in days:
-                    # E列が1日なら column=5
-                    ws_master.cell(row=current_row, column=4 + day, value=days[day])
+            for idx, name in enumerate(unique_names):
+                current_row = BASE_ROW + idx
+                # B列: 名前
+                ws_arrival.cell(row=current_row, column=2, value=name)
+                
+                # F列～: 時間
+                if name in arrival_data:
+                    days = arrival_data[name]
+                    for day, time_val in days.items():
+                        # 1日=F列(6列目) なので、 column = 5 + day
+                        ws_arrival.cell(row=current_row, column=5 + day, value=time_val)
 
-        # 3. 保存
+        # 4. 「まとめ（降園）」シート（4枚目）へ、★Python計算値(降園)★ を貼る
+        if 'まとめ（降園）' in wb_template.sheetnames:
+            ws_departure = wb_template['まとめ（降園）']
+            # B3からスタート
+            BASE_ROW = 3
+            
+            for idx, name in enumerate(unique_names):
+                current_row = BASE_ROW + idx
+                # B列: 名前
+                ws_departure.cell(row=current_row, column=2, value=name)
+                
+                # F列～: 時間
+                if name in departure_data:
+                    days = departure_data[name]
+                    for day, time_val in days.items():
+                        ws_departure.cell(row=current_row, column=5 + day, value=time_val)
+
+        # 保存処理
         output_stream = io.BytesIO()
         wb_template.save(output_stream)
         output_stream.seek(0)
