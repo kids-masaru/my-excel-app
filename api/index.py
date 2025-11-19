@@ -30,16 +30,14 @@ def process_excel():
         wb_uploaded = openpyxl.load_workbook(uploaded_file, data_only=True)
         ws_src = wb_uploaded.worksheets[0] # 1枚目のシート
         
-        # 全行をリストとして取得（行番号でアクセスするため）
-        # min_row=1 から最後まで取得
+        # 全行をリストとして取得
         all_rows = list(ws_src.iter_rows(values_only=True))
 
         unique_names = []
-        arrival_data = {}   # 登園（上の段）
-        departure_data = {} # 降園（下の段）
+        arrival_data = {}   # 登園
+        departure_data = {} # 降園
 
-        # データ開始行（以前の画像から58行目付近と推測されますが、安全のため全体走査または固定）
-        # ここではループで見つけます
+        # データ開始行の調整（F列に時間が入っている行を探す）
         START_ROW_INDEX = 57 # 58行目 = index 57
 
         for i, row in enumerate(all_rows):
@@ -63,26 +61,23 @@ def process_excel():
             # -----------------------------------------------------
             # 登園時間の取得（名前と同じ行：F列～）
             # -----------------------------------------------------
-            # F列は index 5。ここから31日分(index 35まで)を見る
+            # 読み込みは F列(Index 5) からで合っています
             for day in range(31):
                 col_idx = 5 + day
                 if col_idx < len(row):
                     val = row[col_idx]
-                    # 0や空でなければ採用
                     if val and val != 0:
                         arrival_data[name][day + 1] = val
 
             # -----------------------------------------------------
             # 降園時間の取得（名前の【1つ下の行】：F列～）
             # -----------------------------------------------------
-            # 次の行が存在するか確認
             if i + 1 < len(all_rows):
                 next_row = all_rows[i + 1]
                 for day in range(31):
                     col_idx = 5 + day
                     if col_idx < len(next_row):
                         val = next_row[col_idx]
-                        # 0や空でなければ採用
                         if val and val != 0:
                             departure_data[name][day + 1] = val
 
@@ -90,55 +85,50 @@ def process_excel():
         # 処理B: 書き込みフェーズ
         # =========================================================
 
-        # 1. 「貼り付け用」シート（1枚目）へ、アップロードデータをそのままコピー
+        # 1. 「貼り付け用」シートへコピー
         ws_paste = wb_template['貼り付け用']
         for i, row in enumerate(all_rows, start=1):
             for j, value in enumerate(row, start=1):
                 ws_paste.cell(row=i, column=j, value=value)
 
-        # 2. 「子どもマスタ」シート（2枚目）へ、★Web入力データ★ を貼る
-        # （ここを元に戻しました）
+        # 2. 「子どもマスタ」シートへWeb入力データを貼る
         if '子どもマスタ' in wb_template.sheetnames:
             ws_child = wb_template['子どもマスタ']
             for row_idx, row_data in enumerate(table_data):
                 for col_idx, value in enumerate(row_data):
-                    # A2から貼り付け
                     ws_child.cell(row=row_idx + 2, column=col_idx + 1, value=value)
 
-        # 3. 「まとめ（登園）」シート（3枚目）へ、★Python計算値(登園)★ を貼る
+        # 3. 「まとめ（登園）」シートへ書き込み
         if 'まとめ（登園）' in wb_template.sheetnames:
             ws_arrival = wb_template['まとめ（登園）']
-            # B3からスタート
             BASE_ROW = 3
             
             for idx, name in enumerate(unique_names):
                 current_row = BASE_ROW + idx
-                # B列: 名前
-                ws_arrival.cell(row=current_row, column=2, value=name)
+                ws_arrival.cell(row=current_row, column=2, value=name) # B列
                 
-                # F列～: 時間
+                # 時間データ書き込み
                 if name in arrival_data:
                     days = arrival_data[name]
                     for day, time_val in days.items():
-                        # 1日=F列(6列目) なので、 column = 5 + day
-                        ws_arrival.cell(row=current_row, column=5 + day, value=time_val)
+                        # ★修正箇所: 1日=E列(5列目) なので、4 + day
+                        ws_arrival.cell(row=current_row, column=4 + day, value=time_val)
 
-        # 4. 「まとめ（降園）」シート（4枚目）へ、★Python計算値(降園)★ を貼る
+        # 4. 「まとめ（降園）」シートへ書き込み
         if 'まとめ（降園）' in wb_template.sheetnames:
             ws_departure = wb_template['まとめ（降園）']
-            # B3からスタート
             BASE_ROW = 3
             
             for idx, name in enumerate(unique_names):
                 current_row = BASE_ROW + idx
-                # B列: 名前
-                ws_departure.cell(row=current_row, column=2, value=name)
+                ws_departure.cell(row=current_row, column=2, value=name) # B列
                 
-                # F列～: 時間
+                # 時間データ書き込み
                 if name in departure_data:
                     days = departure_data[name]
                     for day, time_val in days.items():
-                        ws_departure.cell(row=current_row, column=5 + day, value=time_val)
+                        # ★修正箇所: ここも 4 + day に変更
+                        ws_departure.cell(row=current_row, column=4 + day, value=time_val)
 
         # 保存処理
         output_stream = io.BytesIO()
