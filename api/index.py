@@ -42,7 +42,9 @@ def process_excel():
         for row_idx, row_data in enumerate(table_data):
             for col_idx, value in enumerate(row_data):
                 ws_master.cell(row=row_idx + 2, column=col_idx + 1, value=value)
-
+                
+        wb_template.properties.calcId = None
+        
         # 3. Excelとして保存
         output_stream = io.BytesIO()
         wb_template.save(output_stream)
